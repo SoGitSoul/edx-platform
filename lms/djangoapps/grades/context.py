@@ -17,6 +17,16 @@ def grading_context_for_course(course):
     return grading_context(course, course_structure)
 
 
+def is_visible_to_staff_only(subsection):
+    """
+    Returns True if the given subsection is visible to staff only else False
+    """
+    try:
+        return subsection.transformer_data['visibility'].fields['merged_visible_to_staff_only']
+    except KeyError:
+        return False
+
+
 def grading_context(course, course_structure):
     """
     This returns a dictionary with keys necessary for quickly grading
@@ -44,7 +54,7 @@ def grading_context(course, course_structure):
         for subsection_key in course_structure.get_children(chapter_key):
             subsection = course_structure[subsection_key]
             scored_descendants_of_subsection = []
-            if subsection.graded:
+            if not is_visible_to_staff_only(subsection) and subsection.graded:
                 for descendant_key in course_structure.post_order_traversal(
                         filter_func=possibly_scored,
                         start_node=subsection_key,

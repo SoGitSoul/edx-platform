@@ -1952,7 +1952,6 @@ class TestGradeReport(TestReportMixin, InstructorTaskModuleTestCase):
 
         with patch('lms.djangoapps.instructor_task.tasks_helper.runner._get_current_task'):
             result = CourseGradeReport.generate(None, None, self.course.id, None, 'graded')
-
             self.assertDictContainsSubset(
                 {'action_name': 'graded', 'attempted': 1, 'succeeded': 1, 'failed': 0},
                 result,
@@ -1965,10 +1964,9 @@ class TestGradeReport(TestReportMixin, InstructorTaskModuleTestCase):
                         u'Username': self.student.username,
                         u'Grade': '0.13',
                         u'Homework 1: Subsection': '0.5',
-                        u'Homework 2: Hidden': u'Not Attempted',
-                        u'Homework 3: Unattempted': u'Not Attempted',
-                        u'Homework 4: Empty': u'Not Attempted',
-                        u'Homework (Avg)': '0.125',
+                        u'Homework 3: Unattempted': None,
+                        u'Homework 4: Empty': None,
+                        u'Homework (Avg)': u'0.16666666666666666',
                     },
                 ],
                 ignore_other_columns=True,
