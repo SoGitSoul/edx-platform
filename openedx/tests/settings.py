@@ -60,12 +60,12 @@ PROCTORING_BACKENDS = {
 FEATURES = {}
 
 INSTALLED_APPS = (
-    'django_comment_common',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.sites',
     'djcelery',
+    'openedx.core.djangoapps.django_comment_common',
     'openedx.core.djangoapps.video_config',
     'openedx.core.djangoapps.video_pipeline',
     'openedx.core.djangoapps.bookmarks.apps.BookmarksConfig',
@@ -88,6 +88,7 @@ INSTALLED_APPS = (
     'milestones',
     'celery_utils',
     'waffle',
+    'edx_when',
 
     # Django 1.11 demands to have imported models supported by installed apps.
     'completion',

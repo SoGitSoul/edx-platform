@@ -2,8 +2,8 @@
 Define some view level utility functions here that multiple view modules will share
 """
 from contextlib import contextmanager
-from functools import wraps
 
+from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.pagination import CursorPagination
@@ -11,54 +11,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from six import text_type
 
-from django.contrib.auth import get_user_model
 from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
-from opaque_keys import InvalidKeyError
-from opaque_keys.edx.keys import CourseKey
-from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin
 from student.models import CourseEnrollment
 from util.query import use_read_replica_if_available
 
 USER_MODEL = get_user_model()
-
-
-def get_course_key(request, course_id=None):
-    if not course_id:
-        return CourseKey.from_string(request.GET.get('course_id'))
-    return CourseKey.from_string(course_id)
-
-
-def verify_course_exists(view_func):
-    """
-    A decorator to wrap a view function that takes `course_key` as a parameter.
-
-    Raises:
-        An API error if the `course_key` is invalid, or if no `CourseOverview` exists for the given key.
-    """
-    @wraps(view_func)
-    def wrapped_function(self, request, **kwargs):
-        """
-        Wraps the given view_function.
-        """
-        try:
-            course_key = get_course_key(request, kwargs.get('course_id'))
-        except InvalidKeyError:
-            raise self.api_error(
-                status_code=status.HTTP_404_NOT_FOUND,
-                developer_message='The provided course key cannot be parsed.',
-                error_code='invalid_course_key'
-            )
-
-        if not CourseOverview.get_from_id_if_exists(course_key):
-            raise self.api_error(
-                status_code=status.HTTP_404_NOT_FOUND,
-                developer_message=u"Requested grade for unknown course {course}".format(course=text_type(course_key)),
-                error_code='course_does_not_exist'
-            )
-
-        return view_func(self, request, **kwargs)
-    return wrapped_function
 
 
 class CourseEnrollmentPagination(CursorPagination):
@@ -80,39 +38,6 @@ class CourseEnrollmentPagination(CursorPagination):
             pass
 
         return self.page_size
-
-
-class PaginatedAPIView(APIView):
-    """
-    An `APIView` class enhanced with the pagination methods of `GenericAPIView`.
-    """
-    # pylint: disable=attribute-defined-outside-init
-    @property
-    def paginator(self):
-        """
-        The paginator instance associated with the view, or `None`.
-        """
-        if not hasattr(self, '_paginator'):
-            if self.pagination_class is None:
-                self._paginator = None
-            else:
-                self._paginator = self.pagination_class()
-        return self._paginator
-
-    def paginate_queryset(self, queryset):
-        """
-        Return a single page of results, or `None` if pagination is disabled.
-        """
-        if self.paginator is None:
-            return None
-        return self.paginator.paginate_queryset(queryset, self.request, view=self)
-
-    def get_paginated_response(self, data):
-        """
-        Return a paginated style `Response` object for the given output data.
-        """
-        assert self.paginator is not None
-        return self.paginator.get_paginated_response(data)
 
 
 class GradeViewMixin(DeveloperErrorViewMixin):

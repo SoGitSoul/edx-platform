@@ -7,6 +7,7 @@ Unit tests for LMS instructor-initiated background tasks helper functions.
 - Tests all of the existing reports.
 
 """
+from __future__ import unicode_literals
 
 import os
 import shutil
@@ -498,13 +499,13 @@ class TestProblemResponsesReport(TestReportMixin, InstructorTaskModuleTestCase):
         Temporarily removes the generate_report_data method so we can test
         report generation when it's absent.
         """
-        from xmodule.capa_module import CapaDescriptor
-        generate_report_data = CapaDescriptor.generate_report_data
-        del CapaDescriptor.generate_report_data
+        from xmodule.capa_module import ProblemBlock
+        generate_report_data = ProblemBlock.generate_report_data
+        del ProblemBlock.generate_report_data
         try:
             yield
         finally:
-            CapaDescriptor.generate_report_data = generate_report_data
+            ProblemBlock.generate_report_data = generate_report_data
 
     @patch.dict('django.conf.settings.FEATURES', {'MAX_PROBLEM_RESPONSES_COUNT': 4})
     def test_build_student_data_limit(self):
@@ -552,7 +553,7 @@ class TestProblemResponsesReport(TestReportMixin, InstructorTaskModuleTestCase):
         self.assertIn('state', student_data[0])
         mock_list_problem_responses.assert_called_with(self.course.id, ANY, ANY)
 
-    @patch('xmodule.capa_module.CapaDescriptor.generate_report_data', create=True)
+    @patch('xmodule.capa_module.ProblemBlock.generate_report_data', create=True)
     def test_build_student_data_for_block_with_mock_generate_report_data(self, mock_generate_report_data):
         """
         Ensure that building student data for a block that supports the
@@ -616,7 +617,7 @@ class TestProblemResponsesReport(TestReportMixin, InstructorTaskModuleTestCase):
         self.assertIn('state', student_data[0])
 
     @patch('lms.djangoapps.instructor_task.tasks_helper.grades.list_problem_responses')
-    @patch('xmodule.capa_module.CapaDescriptor.generate_report_data', create=True)
+    @patch('xmodule.capa_module.ProblemBlock.generate_report_data', create=True)
     def test_build_student_data_for_block_with_generate_report_data_not_implemented(
             self,
             mock_generate_report_data,
@@ -765,7 +766,7 @@ class TestInstructorDetailedEnrollmentReport(TestReportMixin, InstructorTaskCour
         response = self.client.get(redeem_url)
         self.assertEquals(response.status_code, 200)
         # check button text
-        self.assertIn('Activate Course Enrollment', response.content)
+        self.assertIn('Activate Course Enrollment', response.content.decode('utf-8'))
 
         response = self.client.post(redeem_url)
         self.assertEquals(response.status_code, 200)
@@ -799,7 +800,7 @@ class TestInstructorDetailedEnrollmentReport(TestReportMixin, InstructorTaskCour
         response = self.client.get(redeem_url)
         self.assertEquals(response.status_code, 200)
         # check button text
-        self.assertIn('Activate Course Enrollment', response.content)
+        self.assertIn('Activate Course Enrollment', response.content.decode('utf-8'))
 
         response = self.client.post(redeem_url)
         self.assertEquals(response.status_code, 200)
@@ -840,7 +841,7 @@ class TestInstructorDetailedEnrollmentReport(TestReportMixin, InstructorTaskCour
         response = self.client.get(redeem_url)
         self.assertEquals(response.status_code, 200)
         # check button text
-        self.assertIn('Activate Course Enrollment', response.content)
+        self.assertIn('Activate Course Enrollment', response.content.decode('utf-8'))
 
         response = self.client.post(redeem_url)
         self.assertEquals(response.status_code, 200)
@@ -1325,7 +1326,7 @@ class TestExecutiveSummaryReport(TestReportMixin, InstructorTaskCourseTestCase):
         response = self.client.get(redeem_url)
         self.assertEquals(response.status_code, 200)
         # check button text
-        self.assertIn('Activate Course Enrollment', response.content)
+        self.assertIn('Activate Course Enrollment', response.content.decode('utf-8'))
 
         response = self.client.post(redeem_url)
         self.assertEquals(response.status_code, 200)
@@ -1954,7 +1955,6 @@ class TestGradeReport(TestReportMixin, InstructorTaskModuleTestCase):
 
         with patch('lms.djangoapps.instructor_task.tasks_helper.runner._get_current_task'):
             result = CourseGradeReport.generate(None, None, self.course.id, None, 'graded')
-
             self.assertDictContainsSubset(
                 {'action_name': 'graded', 'attempted': 1, 'succeeded': 1, 'failed': 0},
                 result,
@@ -1967,10 +1967,9 @@ class TestGradeReport(TestReportMixin, InstructorTaskModuleTestCase):
                         u'Username': self.student.username,
                         u'Grade': '0.13',
                         u'Homework 1: Subsection': '0.5',
-                        u'Homework 2: Hidden': u'Not Attempted',
-                        u'Homework 3: Unattempted': u'Not Attempted',
-                        u'Homework 4: Empty': u'Not Attempted',
-                        u'Homework (Avg)': '0.125',
+                        u'Homework 2: Unattempted': 'Not Attempted',
+                        u'Homework 3: Empty': 'Not Attempted',
+                        u'Homework (Avg)': text_type(1.0 / 6.0),
                     },
                 ],
                 ignore_other_columns=True,

@@ -1465,8 +1465,8 @@ class ProgressPageTests(ProgressPageBaseTests):
                 self.assertContains(resp, u"Download Your Certificate")
 
     @ddt.data(
-        (True, 50),
-        (False, 49)
+        (True, 52),
+        (False, 51)
     )
     @ddt.unpack
     def test_progress_queries_paced_courses(self, self_paced, query_count):
@@ -1479,8 +1479,8 @@ class ProgressPageTests(ProgressPageBaseTests):
 
     @patch.dict(settings.FEATURES, {'ASSUME_ZERO_GRADE_IF_ABSENT_FOR_ALL_TESTS': False})
     @ddt.data(
-        (False, 58, 38),
-        (True, 49, 33)
+        (False, 60, 40),
+        (True, 51, 35)
     )
     @ddt.unpack
     def test_progress_queries(self, enable_waffle, initial, subsequent):
@@ -1983,7 +1983,7 @@ class ProgressPageShowCorrectnessTests(ProgressPageBaseTests):
             get_mock_request(self.user),
             self.problem.scope_ids.usage_id,
             field_data_cache,
-        )._xmodule
+        )
 
         # Submit the given score/max_score to the problem xmodule
         grade_dict = {'value': value, 'max_value': max_value, 'user_id': self.user.id}
@@ -2517,9 +2517,39 @@ class TestIndexView(ModuleStoreTestCase):
                     self.assertIn('xblock-student_view-html', response.content)
                     self.assertIn('xblock-student_view-video', response.content)
 
+    @patch('courseware.views.views.CourseTabView.course_open_for_learner_enrollment')
+    @patch('openedx.core.djangoapps.util.user_messages.PageLevelMessages.register_warning_message')
+    def test_courseware_messages_differentiate_for_anonymous_users(
+            self, patch_register_warning_message, patch_course_open_for_learner_enrollment
+    ):
+        """
+        Tests that the anonymous user case for the
+        register_user_access_warning_messages returns different
+        messaging based on the possibility of enrollment
+        """
+        course = CourseFactory()
+
+        user = self.create_user_for_course(course, CourseUserType.ANONYMOUS)
+        request = RequestFactory().get('/')
+        request.user = user
+
+        patch_course_open_for_learner_enrollment.return_value = False
+        views.CourseTabView.register_user_access_warning_messages(request, course)
+        open_for_enrollment_message = patch_register_warning_message.mock_calls[0][1][1]
+
+        patch_register_warning_message.reset_mock()
+
+        patch_course_open_for_learner_enrollment.return_value = True
+        views.CourseTabView.register_user_access_warning_messages(request, course)
+        closed_to_enrollment_message = patch_register_warning_message.mock_calls[0][1][1]
+
+        assert open_for_enrollment_message != closed_to_enrollment_message
+
     @patch('openedx.core.djangoapps.util.user_messages.PageLevelMessages.register_warning_message')
     def test_courseware_messages_masters_only(self, patch_register_warning_message):
-        with patch('courseware.views.views.CourseTabView.should_show_enroll_button') as patch_should_show_enroll_button:
+        with patch(
+                'courseware.views.views.CourseTabView.course_open_for_learner_enrollment'
+        ) as patch_course_open_for_learner_enrollment:
             course = CourseFactory()
 
             user = self.create_user_for_course(course, CourseUserType.UNENROLLED)
@@ -2528,7 +2558,7 @@ class TestIndexView(ModuleStoreTestCase):
 
             button_html = '<button class="enroll-btn btn-link">Enroll now</button>'
 
-            patch_should_show_enroll_button.return_value = False
+            patch_course_open_for_learner_enrollment.return_value = False
             views.CourseTabView.register_user_access_warning_messages(request, course)
             # pull message out of the calls to the mock so that
             # we can make finer grained assertions than mock provides
@@ -2537,7 +2567,7 @@ class TestIndexView(ModuleStoreTestCase):
 
             patch_register_warning_message.reset_mock()
 
-            patch_should_show_enroll_button.return_value = True
+            patch_course_open_for_learner_enrollment.return_value = True
             views.CourseTabView.register_user_access_warning_messages(request, course)
             # pull message out of the calls to the mock so that
             # we can make finer grained assertions than mock provides
@@ -2565,7 +2595,10 @@ class TestIndexView(ModuleStoreTestCase):
             patch_is_masters_only.return_value = is_masters_only
             course.invitation_only = invitation_only
 
-            self.assertEqual(views.CourseTabView.should_show_enroll_button(course), expected_should_show_enroll_button)
+            self.assertEqual(
+                views.CourseTabView.course_open_for_learner_enrollment(course),
+                expected_should_show_enroll_button
+            )
 
 
 @ddt.ddt

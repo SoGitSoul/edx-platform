@@ -20,12 +20,10 @@ from lms.djangoapps.grades.api.v1.utils import (
     USER_MODEL,
     CourseEnrollmentPagination,
     GradeViewMixin,
-    PaginatedAPIView,
-    get_course_key,
-    verify_course_exists
 )
 from lms.djangoapps.grades.config.waffle import WRITABLE_GRADEBOOK, waffle_flags
 from lms.djangoapps.grades.constants import ScoreDatabaseTableEnum
+from lms.djangoapps.grades.context import graded_subsections_for_course
 from lms.djangoapps.grades.course_data import CourseData
 from lms.djangoapps.grades.course_grade_factory import CourseGradeFactory
 from lms.djangoapps.grades.events import SUBSECTION_GRADE_CALCULATED, subsection_grade_calculated
@@ -42,7 +40,13 @@ from opaque_keys import InvalidKeyError
 from opaque_keys.edx.keys import CourseKey, UsageKey
 from openedx.core.djangoapps.course_groups import cohorts
 from openedx.core.djangoapps.util.forms import to_bool
-from openedx.core.lib.api.view_utils import DeveloperErrorViewMixin, view_auth_classes
+from openedx.core.lib.api.view_utils import (
+    DeveloperErrorViewMixin,
+    PaginatedAPIView,
+    get_course_key,
+    verify_course_exists,
+    view_auth_classes,
+)
 from openedx.core.lib.cache_utils import request_cached
 from student.auth import has_course_author_access
 from student.models import CourseEnrollment
@@ -536,19 +540,6 @@ class GradebookView(GradeViewMixin, PaginatedAPIView):
 
             serializer = StudentGradebookEntrySerializer(entries, many=True)
             return self.get_paginated_response(serializer.data)
-
-
-def graded_subsections_for_course(course_structure):
-    """
-    Given a course block structure, yields the subsections of the course that are graded.
-    Args:
-        course_structure: A course structure object.  Not user-specific.
-    """
-    for chapter_key in course_structure.get_children(course_structure.root_block_usage_key):
-        for subsection_key in course_structure.get_children(chapter_key):
-            subsection = course_structure[subsection_key]
-            if subsection.graded:
-                yield subsection
 
 
 GradebookUpdateResponseItem = namedtuple('GradebookUpdateResponseItem', ['user_id', 'usage_id', 'success', 'reason'])
